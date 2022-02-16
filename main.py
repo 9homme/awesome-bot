@@ -68,7 +68,9 @@ def main():
         dispatcher = updater.dispatcher
 
         # on different commands - answer in Telegram
-        dispatcher.add_handler(CommandHandler("state", telegram_handler.state))
+        dispatcher.add_handler(
+            CommandHandler("state", telegram_handler.get_current_state)
+        )
         dispatcher.add_handler(
             CommandHandler("exit", telegram_handler.exit_current_trade)
         )

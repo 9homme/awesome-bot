@@ -9,7 +9,7 @@ import binance_client
 from finta import TA
 
 
-def state(update: Update, context: CallbackContext) -> None:
+def get_current_state(update: Update, context: CallbackContext) -> None:
     update.message.reply_text(state.get_state_str())
 
 
