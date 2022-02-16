@@ -51,41 +51,42 @@ def main():
         # load bot state
         state.load_state()
 
-        print(state.get_state_str())
-        # telegram_helper.send_telegram_and_print(state.get_state_str())
-        # # socket manager using threads
-        # twm = ThreadedWebsocketManager()
-        # twm.start()
+        telegram_helper.send_telegram_and_print(state.get_state_str())
+        # socket manager using threads
+        twm = ThreadedWebsocketManager()
+        twm.start()
 
-        # twm.start_kline_socket(
-        #     callback=handle_socket_message,
-        #     symbol=state.ticker,
-        #     interval=config.interval,
-        # )
+        twm.start_kline_socket(
+            callback=handle_socket_message,
+            symbol=state.ticker,
+            interval=config.interval,
+        )
 
-        # # telegram
-        # updater = Updater(config.telegram_token, use_context=True)
-        # # Get the dispatcher to register handlers
-        # dispatcher = updater.dispatcher
+        # telegram
+        updater = Updater(config.telegram_token, use_context=True)
+        # Get the dispatcher to register handlers
+        dispatcher = updater.dispatcher
 
-        # # on different commands - answer in Telegram
-        # dispatcher.add_handler(CommandHandler("state", telegram_handler.state))
-        # dispatcher.add_handler(CommandHandler("exit", telegram_handler.exit_current_trade))
-        # dispatcher.add_handler(CommandHandler("order", telegram_handler.manual_order))
-        # dispatcher.add_handler(
-        #     CommandHandler("revenue", telegram_handler.update_state.total_revenue)
-        # )
+        # on different commands - answer in Telegram
+        dispatcher.add_handler(CommandHandler("state", telegram_handler.state))
+        dispatcher.add_handler(
+            CommandHandler("exit", telegram_handler.exit_current_trade)
+        )
+        dispatcher.add_handler(CommandHandler("order", telegram_handler.manual_order))
+        dispatcher.add_handler(
+            CommandHandler("revenue", telegram_handler.update_state.total_revenue)
+        )
 
-        # # on non command i.e message - echo the message on Telegram
-        # dispatcher.add_handler(
-        #     MessageHandler(Filters.text & ~Filters.command, telegram_handler.echo)
-        # )
+        # on non command i.e message - echo the message on Telegram
+        dispatcher.add_handler(
+            MessageHandler(Filters.text & ~Filters.command, telegram_handler.echo)
+        )
 
-        # # Start the Bot
-        # updater.start_polling()
+        # Start the Bot
+        updater.start_polling()
 
-        # while True:
-        #     twm.join(0.5)
+        while True:
+            twm.join(0.5)
     except KeyboardInterrupt:
         state.save_state()
         os._exit(1)
