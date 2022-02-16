@@ -4,7 +4,7 @@ from binance import Client
 from telegram_client import telegram_helper
 import numpy as np
 import pandas as pd
-import datetime
+from datetime import datetime
 import uuid
 
 # binance client

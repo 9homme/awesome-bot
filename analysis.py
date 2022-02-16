@@ -1,5 +1,5 @@
 import pandas as pd
-import datetime
+from datetime import datetime
 import binance_client
 import config
 from finta import TA

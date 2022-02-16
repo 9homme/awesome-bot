@@ -1,6 +1,6 @@
 import math
 from telegram_client import telegram_helper
-import datetime
+from datetime import datetime
 
 
 def round_decimals_down(number: float, decimals: int = 2):
