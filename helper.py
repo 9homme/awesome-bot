@@ -1,4 +1,6 @@
 import math
+import telegram
+import datetime
 
 
 def round_decimals_down(number: float, decimals: int = 2):
@@ -14,3 +16,21 @@ def round_decimals_down(number: float, decimals: int = 2):
 
     factor = 10**decimals
     return math.floor(number * factor) / factor
+
+
+def calculate_total_revenue(
+    position, current_revenue, quantity, entry_price, exit_price
+):
+    new_revenue = current_revenue
+    if position == "long":
+        new_revenue = current_revenue + (quantity * (exit_price - entry_price))
+
+    elif position == "short":
+        new_revenue = current_revenue + (quantity * (entry_price - exit_price))
+
+    position_result = "Win" if new_revenue > current_revenue else "Lose"
+    telegram.send_telegram_and_print(
+        datetime.now(),
+        f"{position_result}!!!!! {(abs(new_revenue - current_revenue)/current_revenue)*100}%",
+    )
+    return new_revenue
