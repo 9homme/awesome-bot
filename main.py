@@ -9,17 +9,19 @@ from telegram.ext import (
     Filters,
     CallbackContext,
 )
-from lib import heikinashi
+
 import traceback
 import pandas as pd
 import numpy as np
 import sys
 import uuid
-import math
 import dill
 import os
-import configparser
-import json
+
+import helper
+import analysis
+import telegram
+import config
 
 print("Number of arguments:", len(sys.argv), "arguments.")
 print("Argument List:", str(sys.argv))
@@ -31,63 +33,12 @@ current_price = None
 current_quantity = None
 exit_price = None
 take_profit_price = None
-
-config_name = sys.argv[1] if len(sys.argv) > 1 else "default"
-print(f"Loading config from [{config_name}]")
-config = configparser.ConfigParser()
-config.read("user.cfg")
-user_config = config[config_name]
+initial_ticker = config.ticker
 
 # binance client
-api_key = user_config["api_key"]
-api_secret = user_config["api_secret"]
-
-# telegram bot
-telegram_token = user_config["telegram_token"]
-chat_id = int(user_config["chat_id"])
-
-ticker = user_config["ticker"]
-total_revenue = float(user_config["total_revenue"])
-interval = user_config["interval"]
-atr_multiplier = float(user_config["atr_multiplier"])
-risk_reward_ratio = int(user_config["risk_reward_ratio"])
-begin_load_data_from = user_config["begin_load_data_from"]
-leverage = int(user_config["leverage"])
-max_top_coin_scouting = int(user_config["max_top_coin_scouting"])
-offset_top_coin_scouting = int(user_config["offset_top_coin_scouting"])
-auto_scouting = bool(user_config["auto_scouting"] == "true")
-trend_check = bool(user_config["trend_check"] == "true")
-trend_mode = user_config["trend_mode"]
-max_risk = float(user_config["max_risk"])
-risk_mode = user_config["risk_mode"]
-heikin_check = bool(user_config["heikin_check"] == "true")
-heikin_look_back = int(user_config["heikin_look_back"])
-rsi_check = bool(user_config["rsi_check"] == "true")
-rsi_buy = int(user_config["rsi_buy"])
-rsi_sell = int(user_config["rsi_sell"])
-all_coins_list = json.loads(user_config["all_coins_list"])
-signal_type = user_config["signal_type"]
-initial_ticker = ticker
-
-# binance client
-client = Client(api_key, api_secret)
+client = Client(config.api_key, config.api_secret)
 
 exchange_info = client.futures_exchange_info()
-
-
-def round_decimals_down(number: float, decimals: int = 2):
-    """
-    Returns a value rounded down to a specific number of decimal places.
-    """
-    if not isinstance(decimals, int):
-        raise TypeError("decimal places must be an integer")
-    elif decimals < 0:
-        raise ValueError("decimal places has to be 0 or more")
-    elif decimals == 0:
-        return math.floor(number)
-
-    factor = 10**decimals
-    return math.floor(number * factor) / factor
 
 
 def get_symbol_decimal(symbol):
@@ -97,18 +48,12 @@ def get_symbol_decimal(symbol):
     return decimal
 
 
-def crossover(index, s1, s2):
-    s1_lag = s1.shift(1)
-    s2_lag = s2.shift(1)
-    return s1_lag[index] <= s2_lag[index] and s1[index] > s2[index]
-
-
 def get_kline(coin_ticker):
     klines = np.array(
         client.futures_historical_klines(
             coin_ticker,
-            interval,
-            begin_load_data_from,
+            config.interval,
+            config.begin_load_data_from,
         )
     )
 
@@ -148,24 +93,24 @@ def order(
         except Exception as e:
             print(f"Cannot set marginType, message: {str(e)}")
         try:
-            client.futures_change_leverage(symbol=ticker, leverage=leverage)
+            client.futures_change_leverage(symbol=ticker, leverage=config.leverage)
         except Exception as e:
             print(f"Cannot change leverage, message: {str(e)}")
-    total_to_invest = usdt_amount * leverage
+    total_to_invest = usdt_amount * config.leverage
     if current_quantity != None:
         quantity = current_quantity
     else:
         full_risk_quantity = total_to_invest / price
-        risk = (abs(new_exit_price - price) / price) * leverage
-        if risk_mode == "manage" and risk > max_risk:
-            quantity = (full_risk_quantity / risk) * max_risk
+        risk = (abs(new_exit_price - price) / price) * config.leverage
+        if config.risk_mode == "manage" and risk > config.max_risk:
+            quantity = (full_risk_quantity / risk) * config.max_risk
         else:
             quantity = full_risk_quantity
-        quantity = round_decimals_down(quantity, get_symbol_decimal(symbol))
-        send_telegram_and_print(
-            f"Risk mode: {risk_mode}, risk: {risk}, max_risk: {max_risk} will order qty: {quantity} [full risk qty: {full_risk_quantity}]"
+        quantity = helper.round_decimals_down(quantity, get_symbol_decimal(symbol))
+        telegram.send_telegram_and_print(
+            f"Risk mode: {config.risk_mode}, risk: {risk}, max_risk: {config.max_risk} will order qty: {quantity} [full risk qty: {full_risk_quantity}]"
         )
-    send_telegram_and_print(
+    telegram.send_telegram_and_print(
         f"Creating '{position}' order for {symbol} at {price} with quantity: {quantity} [reduceOnly={reduce_only}]"
     )
     side = None
@@ -186,7 +131,7 @@ def order(
 
     order = None
     while True:
-        send_telegram_and_print(
+        telegram.send_telegram_and_print(
             datetime.now(), f"Waiting order: {client_order_id} to be filled"
         )
         try:
@@ -194,7 +139,7 @@ def order(
                 symbol=symbol, origClientOrderId=client_order_id
             )
             if order["status"] == Client.ORDER_STATUS_FILLED:
-                send_telegram_and_print(
+                telegram.send_telegram_and_print(
                     datetime.now(),
                     f"Order: {client_order_id}({order['orderId']}) was filled with avg price: {order['avgPrice']} and qty: {order['executedQty']}",
                 )
@@ -228,7 +173,7 @@ def calculate_total_revenue(
         new_revenue = current_revenue + (quantity * (entry_price - exit_price))
 
     position_result = "Win" if new_revenue > current_revenue else "Lose"
-    send_telegram_and_print(
+    telegram.send_telegram_and_print(
         datetime.now(),
         f"{position_result}!!!!! {(abs(new_revenue - current_revenue)/current_revenue)*100}%",
     )
@@ -255,7 +200,7 @@ def handle_socket_message(msg):
         # process atr stop loss with latest price for early exit strategy
         if current_candle_datetime == message_datetime:
             if current_position == "long" and latest_price < exit_price:
-                send_telegram_and_print(
+                telegram.send_telegram_and_print(
                     datetime.now(), f"Exit with ATR at {latest_price}"
                 )
                 total_revenue = calculate_total_revenue(
@@ -265,13 +210,13 @@ def handle_socket_message(msg):
                     current_price,
                     latest_price,
                 )
-                send_telegram_and_print(
+                telegram.send_telegram_and_print(
                     datetime.now(), f"TotalRevenue: {total_revenue}"
                 )
                 order(ticker, "short", latest_price, total_revenue, reduce_only="true")
             # take profit
             elif current_position == "long" and latest_price >= take_profit_price:
-                send_telegram_and_print(
+                telegram.send_telegram_and_print(
                     datetime.now(), f"Take profit at {latest_price}"
                 )
                 total_revenue = calculate_total_revenue(
@@ -281,13 +226,13 @@ def handle_socket_message(msg):
                     current_price,
                     latest_price,
                 )
-                send_telegram_and_print(
+                telegram.send_telegram_and_print(
                     datetime.now(), f"TotalRevenue: {total_revenue}"
                 )
                 order(ticker, "short", latest_price, total_revenue, reduce_only="true")
             # exit short with atr stop loss
             elif current_position == "short" and latest_price > exit_price:
-                send_telegram_and_print(
+                telegram.send_telegram_and_print(
                     datetime.now(), f"Exit with ATR at {latest_price}"
                 )
                 total_revenue = calculate_total_revenue(
@@ -297,13 +242,13 @@ def handle_socket_message(msg):
                     current_price,
                     latest_price,
                 )
-                send_telegram_and_print(
+                telegram.send_telegram_and_print(
                     datetime.now(), f"TotalRevenue: {total_revenue}"
                 )
                 order(ticker, "long", latest_price, total_revenue, reduce_only="true")
             # take profit
             elif current_position == "short" and latest_price <= take_profit_price:
-                send_telegram_and_print(
+                telegram.send_telegram_and_print(
                     datetime.now(), f"Take profit at {latest_price}"
                 )
                 total_revenue = calculate_total_revenue(
@@ -313,7 +258,7 @@ def handle_socket_message(msg):
                     current_price,
                     latest_price,
                 )
-                send_telegram_and_print(
+                telegram.send_telegram_and_print(
                     datetime.now(), f"TotalRevenue: {total_revenue}"
                 )
                 order(ticker, "long", latest_price, total_revenue, reduce_only="true")
@@ -333,18 +278,18 @@ def handle_socket_message(msg):
             if current_position == None:
                 moon_coin = coin_scouting(
                     message_datetime,
-                    trend_check,
-                    risk_reward_ratio,
-                    max_risk,
-                    leverage,
-                    risk_mode,
-                    heikin_check,
-                    heikin_look_back,
-                    rsi_check,
-                    rsi_buy,
-                    rsi_sell,
-                    atr_multiplier,
-                    signal_type,
+                    config.trend_check,
+                    config.risk_reward_ratio,
+                    config.max_risk,
+                    config.leverage,
+                    config.risk_mode,
+                    config.heikin_check,
+                    config.heikin_look_back,
+                    config.rsi_check,
+                    config.rsi_buy,
+                    config.rsi_sell,
+                    config.atr_multiplier,
+                    config.signal_type,
                 )
                 if moon_coin != None:
                     ticker = moon_coin["symbol"]
@@ -362,9 +307,9 @@ def handle_socket_message(msg):
                     )
                     exit_price = moon_coin["exit_price"]
                     take_profit_price = moon_coin["take_profit_price"]
-                    send_telegram_and_print(
+                    telegram.send_telegram_and_print(
                         message_datetime,
-                        f"{current_position}!!!! signal_type: {signal_type} fast_signal: {fast_signal[message_datetime]} slow_signal: {slow_signal[message_datetime]} current_price: {current_price} exit_at: {exit_price} take_profit_at: {take_profit_price}",
+                        f"{current_position}!!!! signal_type: {config.signal_type} fast_signal: {fast_signal[message_datetime]} slow_signal: {slow_signal[message_datetime]} current_price: {current_price} exit_at: {exit_price} take_profit_at: {take_profit_price}",
                     )
             # If there is current holding position
             else:
@@ -373,14 +318,14 @@ def handle_socket_message(msg):
                     message_datetime,
                     ticker,
                     False,
-                    risk_reward_ratio,
-                    heikin_check,
-                    heikin_look_back,
-                    rsi_check,
-                    rsi_buy,
-                    rsi_sell,
-                    atr_multiplier,
-                    signal_type,
+                    config.risk_reward_ratio,
+                    config.heikin_check,
+                    config.heikin_look_back,
+                    config.rsi_check,
+                    config.rsi_buy,
+                    config.rsi_sell,
+                    config.atr_multiplier,
+                    config.signal_type,
                 )
                 new_position = analyze_result["position"]
                 close_price = analyze_result["last_close_price"]
@@ -391,17 +336,17 @@ def handle_socket_message(msg):
                 low_price = analyze_result["low_price"]
                 atr = analyze_result["atr"]
                 in_trend = analyze_result["in_trend"]
-                send_telegram_and_print(
+                telegram.send_telegram_and_print(
                     message_datetime,
                     ticker,
-                    signal_type,
+                    config.signal_type,
                     f"closed: {close_price}",
                     f"fast_signal: {fast_signal[message_datetime]}",
                     f"slow_signal: {slow_signal[message_datetime]}",
                 )
                 # Exit with CDC then create new opposite order
                 if new_position != None and current_position != new_position:
-                    send_telegram_and_print(
+                    telegram.send_telegram_and_print(
                         message_datetime, f"Exit with CDC at {latest_price}"
                     )
                     total_revenue = calculate_total_revenue(
@@ -411,7 +356,7 @@ def handle_socket_message(msg):
                         current_price,
                         latest_price,
                     )
-                    send_telegram_and_print(
+                    telegram.send_telegram_and_print(
                         message_datetime, f"TotalRevenue: {total_revenue}"
                     )
                     order(
@@ -427,9 +372,9 @@ def handle_socket_message(msg):
                             ticker,
                             latest_price,
                             analyze_result["exit_price"],
-                            leverage,
-                            max_risk,
-                            risk_mode,
+                            config.leverage,
+                            config.max_risk,
+                            config.risk_mode,
                         )
                         and analyze_result["rsi_result"] == True
                     ):
@@ -443,15 +388,15 @@ def handle_socket_message(msg):
                         )
                         exit_price = analyze_result["exit_price"]
                         take_profit_price = analyze_result["take_profit_price"]
-                        send_telegram_and_print(
+                        telegram.send_telegram_and_print(
                             message_datetime,
-                            f"{current_position}!!!! signal_type: {signal_type} fast_signal: {fast_signal[message_datetime]} slow_signal: {slow_signal[message_datetime]} current_price: {current_price} exit_at: {exit_price} take_profit_at: {take_profit_price}",
+                            f"{current_position}!!!! signal_type: {config.signal_type} fast_signal: {fast_signal[message_datetime]} slow_signal: {slow_signal[message_datetime]} current_price: {current_price} exit_at: {exit_price} take_profit_at: {take_profit_price}",
                         )
                 # re calculate exit price if it is higher for long
                 elif current_position == "long":
                     new_exit_price = low_price - atr[message_datetime]
                     if new_exit_price > exit_price:
-                        send_telegram_and_print(
+                        telegram.send_telegram_and_print(
                             message_datetime,
                             f"ATR trailing new exit price: {new_exit_price}",
                         )
@@ -460,7 +405,7 @@ def handle_socket_message(msg):
                 elif current_position == "short":
                     new_exit_price = high_price + atr[message_datetime]
                     if new_exit_price < exit_price:
-                        send_telegram_and_print(
+                        telegram.send_telegram_and_print(
                             message_datetime,
                             f"ATR trailing new exit price: {new_exit_price}",
                         )
@@ -480,23 +425,23 @@ def is_in_trend(
     heikin_look_back,
 ):
     result = False
-    if trend_mode == "ema":
+    if config.trend_mode == "ema":
         ema50 = TA.EMA(ohlc, 50)
         if position == "long":
             result = not trend_check or close_price > ema50[message_datetime]
         elif position == "short":
             result = not trend_check or close_price < ema50[message_datetime]
-        send_telegram_and_print(
-            f"Analyzing trending[{trend_mode}] with trend_check: {trend_check} EMA50: {ema50[message_datetime]} close_price: {close_price} position: {position}, result: {result}"
+        telegram.send_telegram_and_print(
+            f"Analyzing trending[{config.trend_mode}] with trend_check: {trend_check} EMA50: {ema50[message_datetime]} close_price: {close_price} position: {position}, result: {result}"
         )
-    elif trend_mode == "adx":
+    elif config.trend_mode == "adx":
         adx = TA.ADX(ohlc)
         result = not trend_check or adx[message_datetime] >= 20
-        send_telegram_and_print(
-            f"Analyzing trending[{trend_mode}] with trend_check: {trend_check} ADX:{adx[message_datetime]}, result: {result}"
+        telegram.send_telegram_and_print(
+            f"Analyzing trending[{config.trend_mode}] with trend_check: {trend_check} ADX:{adx[message_datetime]}, result: {result}"
         )
     # use both strategy
-    elif trend_mode == "both":
+    elif config.trend_mode == "both":
         adx = TA.ADX(ohlc)
         ema50 = TA.EMA(ohlc, 50)
         if position == "long":
@@ -507,17 +452,17 @@ def is_in_trend(
             result = not trend_check or (
                 close_price < ema50[message_datetime] and adx[message_datetime] >= 20
             )
-        send_telegram_and_print(
-            f"Analyzing trending[{trend_mode}] with trend_check: {trend_check} ADX:{adx[message_datetime]} EMA50: {ema50[message_datetime]} close_price: {close_price} position: {position}, result: {result}"
+        telegram.send_telegram_and_print(
+            f"Analyzing trending[{config.trend_mode}] with trend_check: {trend_check} ADX:{adx[message_datetime]} EMA50: {ema50[message_datetime]} close_price: {close_price} position: {position}, result: {result}"
         )
     else:
         result = not trend_check
 
     # after trend check, if it in trend, then check for heikin if required.
     if trend_check and result == True and heikin_check:
-        send_telegram_and_print("Going to check for heikinashi")
+        telegram.send_telegram_and_print("Going to check for heikinashi")
         # this to remove 1st row which have NaN value
-        heikin = heikinashi(ohlc.iloc[1:, :])
+        heikin = analysis.heikinashi(ohlc.iloc[1:, :])
         for i in range(0, heikin_look_back):
             checking_heikin_candle = heikin.shift(i)
             open_heikin = checking_heikin_candle["open"][message_datetime]
@@ -526,7 +471,7 @@ def is_in_trend(
                 result = close_heikin > open_heikin
             elif position == "short":
                 result = close_heikin < open_heikin
-            send_telegram_and_print(
+            telegram.send_telegram_and_print(
                 f"heikinashi open: {open_heikin} close: {close_heikin} result: {result}"
             )
             if result == False:
@@ -537,10 +482,10 @@ def is_in_trend(
 
 def get_all_coins_list():
     all_coins = [initial_ticker]
-    if auto_scouting == True:
+    if config.auto_scouting == True:
         # if manual override coins list
-        if len(all_coins_list) > 0:
-            all_coins = all_coins_list
+        if len(config.all_coins_list) > 0:
+            all_coins = config.all_coins_list
         else:
             # then get all coins from binance
             # get only top X coin by value trade
@@ -557,7 +502,7 @@ def get_all_coins_list():
                         ),
                     ),
                 )
-            )[offset_top_coin_scouting:max_top_coin_scouting]
+            )[config.offset_top_coin_scouting : config.max_top_coin_scouting]
     return all_coins
 
 
@@ -576,7 +521,9 @@ def coin_scouting(
     atr_multiplier,
     signal_type,
 ):
-    send_telegram_and_print(datetime.now(), f"Try scouting for the best trade...")
+    telegram.send_telegram_and_print(
+        datetime.now(), f"Try scouting for the best trade..."
+    )
     coin_list = get_all_coins_list()
     moon_coin = None
     for coin in coin_list:
@@ -627,6 +574,8 @@ def analyze_coin(
     # load historical data
     ohlc = None
     moon_coin = None
+    retry_limit = 20
+    count = 0
     while True:
         try:
             ohlc = get_kline(coin)
@@ -634,6 +583,11 @@ def analyze_coin(
             break
         except:
             print("kline historical data in not complete, retry...")
+            count = count + 1
+            if count > retry_limit:
+                telegram.send_telegram_and_print(f"{coin} is unavailable, will skip!!")
+                break
+
     # shift ohlc for 1 row, we expect to take action based on last closed candle
     ohlc = ohlc.shift(1)
     fast_signal = None
@@ -674,7 +628,7 @@ def analyze_coin(
     moon_coin["high_price"] = high_price
     moon_coin["low_price"] = low_price
 
-    if crossover(message_datetime, fast_signal, slow_signal) and is_in_trend(
+    if analysis.crossover(message_datetime, fast_signal, slow_signal) and is_in_trend(
         "long",
         trend_check,
         last_close_price,
@@ -697,7 +651,7 @@ def analyze_coin(
         moon_coin["take_profit_price"] = latest_price + (
             (latest_price - moon_coin["exit_price"]) * risk_reward_ratio
         )
-    elif crossover(message_datetime, slow_signal, fast_signal) and is_in_trend(
+    elif analysis.crossover(message_datetime, slow_signal, fast_signal) and is_in_trend(
         "short",
         trend_check,
         last_close_price,
@@ -728,7 +682,7 @@ def analyze_coin(
 
 
 def check_rsi(position, rsi_check, current_rsi, rsi_buy, rsi_sell):
-    send_telegram_and_print(
+    telegram.send_telegram_and_print(
         f"Checking RSI:{rsi_check}, potition: {position}, rsi: {current_rsi}"
     )
     return (
@@ -741,18 +695,18 @@ def check_rsi(position, rsi_check, current_rsi, rsi_buy, rsi_sell):
 def too_risk(symbol, latest_price, exit_price, leverage, max_risk, risk_mode):
     if risk_mode == "skip":
         risk = (abs(latest_price - exit_price) / latest_price) * leverage
-        send_telegram_and_print(
+        telegram.send_telegram_and_print(
             symbol,
             f"Checking risk percentage latest_price: {latest_price} exit_price: {exit_price} leverage: {leverage} risk: {risk*100}%",
         )
         if risk <= max_risk:
-            send_telegram_and_print(symbol, f"Going to take risk...")
+            telegram.send_telegram_and_print(symbol, f"Going to take risk...")
             return False
         else:
-            send_telegram_and_print(symbol, f"Too much risk, will skip...")
+            telegram.send_telegram_and_print(symbol, f"Too much risk, will skip...")
             return True
     else:
-        send_telegram_and_print(
+        telegram.send_telegram_and_print(
             symbol, f"Risk mode: {risk_mode}, will not skip the trade"
         )
         return False
@@ -770,7 +724,7 @@ def save_state():
         round(take_profit_price, 5) if take_profit_price != None else None
     )
     state["total_revenue"] = round(total_revenue, 5) if total_revenue != None else None
-    with open(f"{config_name}_state.pkl", "wb") as file:
+    with open(f"{config.config_name}_state.pkl", "wb") as file:
         dill.dump(state, file)
 
 
@@ -784,7 +738,7 @@ def load_state():
     global take_profit_price
     global total_revenue
     try:
-        with open(f"{config_name}_state.pkl", "rb") as file:
+        with open(f"{config.config_name}_state.pkl", "rb") as file:
             state = dill.load(file)
             ticker = state["ticker"] if state["ticker"] != None else initial_ticker
             current_candle_datetime = state["datetime"]
@@ -797,13 +751,6 @@ def load_state():
                 total_revenue = state["total_revenue"]
     except:
         print(f"No state for {ticker}, bot will start from zero")
-
-
-def send_telegram_and_print(*messages, end: str = None):
-    updater = Updater(telegram_token, use_context=True)
-    message = " ".join(map(lambda msg: str(msg), messages))
-    updater.bot.send_message(chat_id, message)
-    print(message, end=end)
 
 
 def state(update: Update, context: CallbackContext) -> None:
@@ -870,7 +817,7 @@ def manual_order(update: Update, context: CallbackContext) -> None:
             elif order_position == "short":
                 exit_price = high_price + last_atr
             take_profit_price = close_price + (
-                (close_price - exit_price) * risk_reward_ratio
+                (close_price - exit_price) * config.risk_reward_ratio
             )
             order(
                 ticker,
@@ -903,7 +850,7 @@ def main():
     try:
         # load bot state
         load_state()
-        send_telegram_and_print(get_state_str())
+        telegram.send_telegram_and_print(get_state_str())
         # socket manager using threads
         twm = ThreadedWebsocketManager()
         twm.start()
@@ -911,11 +858,11 @@ def main():
         twm.start_kline_socket(
             callback=handle_socket_message,
             symbol=ticker,
-            interval=interval,
+            interval=config.interval,
         )
 
         # telegram
-        updater = Updater(telegram_token, use_context=True)
+        updater = Updater(config.telegram_token, use_context=True)
         # Get the dispatcher to register handlers
         dispatcher = updater.dispatcher
 
