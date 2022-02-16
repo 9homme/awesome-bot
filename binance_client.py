@@ -8,13 +8,13 @@ import datetime
 import uuid
 
 # binance client
-client = Client(config.api_key, config.api_secret)
+_client = Client(config.api_key, config.api_secret)
 
-exchange_info = client.futures_exchange_info()
+_exchange_info = _client.futures_exchange_info()
 
 
 def futures_recent_trades(symbol):
-    client.futures_recent_trades(symbol=symbol)
+    _client.futures_recent_trades(symbol=symbol)
 
 
 def get_all_coins_list():
@@ -32,7 +32,7 @@ def get_all_coins_list():
                     map(
                         lambda row: row["symbol"],
                         sorted(
-                            client.futures_ticker(),
+                            _client.futures_ticker(),
                             key=lambda r: float(r["volume"])
                             * float(r["weightedAvgPrice"]),
                             reverse=True,
@@ -44,7 +44,7 @@ def get_all_coins_list():
 
 
 def get_symbol_decimal(symbol):
-    decimal = list(filter(lambda r: r["symbol"] == symbol, exchange_info["symbols"]))[
+    decimal = list(filter(lambda r: r["symbol"] == symbol, _exchange_info["symbols"]))[
         0
     ]["quantityPrecision"]
     return decimal
@@ -52,7 +52,7 @@ def get_symbol_decimal(symbol):
 
 def get_kline(coin_ticker):
     klines = np.array(
-        client.futures_historical_klines(
+        _client.futures_historical_klines(
             coin_ticker,
             config.interval,
             config.begin_load_data_from,
@@ -86,11 +86,11 @@ def order(
     # try to set leverage and margin type
     if reduce_only == "false":
         try:
-            client.futures_change_margin_type(symbol=symbol, marginType="ISOLATED")
+            _client.futures_change_margin_type(symbol=symbol, marginType="ISOLATED")
         except Exception as e:
             print(f"Cannot set marginType, message: {str(e)}")
         try:
-            client.futures_change_leverage(symbol=symbol, leverage=config.leverage)
+            _client.futures_change_leverage(symbol=symbol, leverage=config.leverage)
         except Exception as e:
             print(f"Cannot change leverage, message: {str(e)}")
     total_to_invest = usdt_amount * config.leverage
@@ -119,7 +119,7 @@ def order(
         side = Client.SIDE_SELL
 
     client_order_id = str(uuid.uuid4())
-    client.futures_create_order(
+    _client.futures_create_order(
         symbol=symbol,
         side=side,
         type=Client.ORDER_TYPE_MARKET,
@@ -134,7 +134,7 @@ def order(
             datetime.now(), f"Waiting order: {client_order_id} to be filled"
         )
         try:
-            order = client.futures_get_order(
+            order = _client.futures_get_order(
                 symbol=symbol, origClientOrderId=client_order_id
             )
             if order["status"] == Client.ORDER_STATUS_FILLED:
