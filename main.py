@@ -76,7 +76,7 @@ def main():
         )
         dispatcher.add_handler(CommandHandler("order", telegram_handler.manual_order))
         dispatcher.add_handler(
-            CommandHandler("revenue", telegram_handler.update_state.total_revenue)
+            CommandHandler("revenue", telegram_handler.update_total_revenue)
         )
 
         # on non command i.e message - echo the message on Telegram
