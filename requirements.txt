@@ -1,0 +1,8 @@
+python-binance==1.0.15
+finta==1.3
+python-telegram-bot==13.10
+pandas==1.4.0
+numpy==1.22.1
+dill==0.3.4
+configparser==5.2.0
+
