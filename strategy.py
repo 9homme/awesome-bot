@@ -12,7 +12,7 @@ def process_tick(message_datetime, latest_price):
         telegram_helper.send_telegram_and_print(
             datetime.now(), f"Exit with ATR at {latest_price}"
         )
-        state.total_revenue = helper.calculate_state.total_revenue(
+        state.total_revenue = helper.calculate_total_revenue(
             state.current_position,
             state.total_revenue,
             state.current_quantity,
@@ -30,7 +30,7 @@ def process_tick(message_datetime, latest_price):
         telegram_helper.send_telegram_and_print(
             datetime.now(), f"Take profit at {latest_price}"
         )
-        state.total_revenue = helper.calculate_state.total_revenue(
+        state.total_revenue = helper.calculate_total_revenue(
             state.current_position,
             state.total_revenue,
             state.current_quantity,
@@ -48,7 +48,7 @@ def process_tick(message_datetime, latest_price):
         telegram_helper.send_telegram_and_print(
             datetime.now(), f"Exit with ATR at {latest_price}"
         )
-        state.total_revenue = helper.calculate_state.total_revenue(
+        state.total_revenue = helper.calculate_total_revenue(
             state.current_position,
             state.total_revenue,
             state.current_quantity,
@@ -66,7 +66,7 @@ def process_tick(message_datetime, latest_price):
         telegram_helper.send_telegram_and_print(
             datetime.now(), f"Take profit at {latest_price}"
         )
-        state.total_revenue = helper.calculate_state.total_revenue(
+        state.total_revenue = helper.calculate_total_revenue(
             state.current_position,
             state.total_revenue,
             state.current_quantity,
@@ -164,7 +164,7 @@ def process_closed_candle_for_current_position(message_datetime):
         telegram_helper.send_telegram_and_print(
             message_datetime, f"Exit with CDC at {latest_price}"
         )
-        state.total_revenue = helper.calculate_state.total_revenue(
+        state.total_revenue = helper.calculate_total_revenue(
             state.current_position,
             state.total_revenue,
             state.current_quantity,
