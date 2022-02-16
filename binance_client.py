@@ -14,7 +14,7 @@ _exchange_info = _client.futures_exchange_info()
 
 
 def futures_recent_trades(symbol):
-    _client.futures_recent_trades(symbol=symbol)
+    return _client.futures_recent_trades(symbol=symbol)
 
 
 def get_all_coins_list():
