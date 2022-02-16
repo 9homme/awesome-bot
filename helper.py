@@ -1,5 +1,5 @@
 import math
-import telegram
+from telegram_client import telegram_helper
 import datetime
 
 
@@ -29,7 +29,7 @@ def calculate_total_revenue(
         new_revenue = current_revenue + (quantity * (entry_price - exit_price))
 
     position_result = "Win" if new_revenue > current_revenue else "Lose"
-    telegram.send_telegram_and_print(
+    telegram_helper.send_telegram_and_print(
         datetime.now(),
         f"{position_result}!!!!! {(abs(new_revenue - current_revenue)/current_revenue)*100}%",
     )

@@ -1,20 +1,12 @@
 from telegram import Update
 from telegram.ext import (
-    Updater,
     CallbackContext,
 )
 import config
 import state
 import helper
-import binance
+import binance_client
 from finta import TA
-
-
-def send_telegram_and_print(*messages, end: str = None):
-    updater = Updater(config.telegram_token, use_context=True)
-    message = " ".join(map(lambda msg: str(msg), messages))
-    updater.bot.send_message(config.chat_id, message)
-    print(message, end=end)
 
 
 def state(update: Update, context: CallbackContext) -> None:
@@ -36,7 +28,7 @@ def exit_current_trade(update: Update, context: CallbackContext) -> None:
             order_position = "long"
         elif state.current_position == "long":
             order_position = "short"
-        latest_price = binance.futures_recent_trades(symbol=state.ticker)
+        latest_price = binance_client.futures_recent_trades(symbol=state.ticker)
         latest_price = float(latest_price[-1]["price"])
         state.total_revenue = helper.calculate_total_revenue(
             state.current_position,
@@ -46,7 +38,7 @@ def exit_current_trade(update: Update, context: CallbackContext) -> None:
             latest_price,
         )
         update.message.reply_text(f"TotalRevenue: {state.total_revenue}")
-        binance.order(
+        binance_client.order(
             state.ticker,
             order_position,
             latest_price,
@@ -67,10 +59,10 @@ def manual_order(update: Update, context: CallbackContext) -> None:
                 f"Going to proceed {order_position} for {order_symbol}"
             )
             state.ticker = order_symbol
-            latest_price = binance.futures_recent_trades(symbol=state.ticker)
+            latest_price = binance_client.futures_recent_trades(symbol=state.ticker)
             latest_price = float(latest_price[-1]["price"])
             # load historical data
-            ohlc = binance.get_kline(state.ticker)
+            ohlc = binance_client.get_kline(state.ticker)
             last_closed_candle = ohlc.iloc[-2]
             close_price = last_closed_candle["close"]
             low_price = last_closed_candle["low"]
@@ -84,7 +76,7 @@ def manual_order(update: Update, context: CallbackContext) -> None:
             state.take_profit_price = close_price + (
                 (close_price - state.exit_price) * config.risk_reward_ratio
             )
-            binance.order(
+            binance_client.order(
                 state.ticker,
                 order_position,
                 latest_price,

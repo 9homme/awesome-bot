@@ -9,10 +9,10 @@ from telegram.ext import (
 import traceback
 import sys
 import os
-import telegram
+from telegram_client import telegram_helper, telegram_handler
 import config
 import state
-import binance
+import binance_client
 import strategy
 
 print("Number of arguments:", len(sys.argv), "arguments.")
@@ -26,7 +26,7 @@ def handle_socket_message(msg):
         message_datetime = datetime.fromtimestamp(
             msg["k"]["t"] / 1000.0, timezone.utc
         ).replace(tzinfo=None)
-        latest_price = binance.futures_recent_trades(symbol=state.ticker)
+        latest_price = binance_client.futures_recent_trades(symbol=state.ticker)
         latest_price = float(latest_price[-1]["price"])
         # process atr stop loss with latest price for early exit strategy
         if state.current_candle_datetime == message_datetime:
@@ -50,40 +50,42 @@ def main():
     try:
         # load bot state
         state.load_state()
-        telegram.send_telegram_and_print(state.get_state_str())
-        # socket manager using threads
-        twm = ThreadedWebsocketManager()
-        twm.start()
 
-        twm.start_kline_socket(
-            callback=handle_socket_message,
-            symbol=state.ticker,
-            interval=config.interval,
-        )
+        print(state.get_state_str())
+        # telegram_helper.send_telegram_and_print(state.get_state_str())
+        # # socket manager using threads
+        # twm = ThreadedWebsocketManager()
+        # twm.start()
 
-        # telegram
-        updater = Updater(config.telegram_token, use_context=True)
-        # Get the dispatcher to register handlers
-        dispatcher = updater.dispatcher
+        # twm.start_kline_socket(
+        #     callback=handle_socket_message,
+        #     symbol=state.ticker,
+        #     interval=config.interval,
+        # )
 
-        # on different commands - answer in Telegram
-        dispatcher.add_handler(CommandHandler("state", telegram.state))
-        dispatcher.add_handler(CommandHandler("exit", telegram.exit_current_trade))
-        dispatcher.add_handler(CommandHandler("order", telegram.manual_order))
-        dispatcher.add_handler(
-            CommandHandler("revenue", telegram.update_state.total_revenue)
-        )
+        # # telegram
+        # updater = Updater(config.telegram_token, use_context=True)
+        # # Get the dispatcher to register handlers
+        # dispatcher = updater.dispatcher
 
-        # on non command i.e message - echo the message on Telegram
-        dispatcher.add_handler(
-            MessageHandler(Filters.text & ~Filters.command, telegram.echo)
-        )
+        # # on different commands - answer in Telegram
+        # dispatcher.add_handler(CommandHandler("state", telegram_handler.state))
+        # dispatcher.add_handler(CommandHandler("exit", telegram_handler.exit_current_trade))
+        # dispatcher.add_handler(CommandHandler("order", telegram_handler.manual_order))
+        # dispatcher.add_handler(
+        #     CommandHandler("revenue", telegram_handler.update_state.total_revenue)
+        # )
 
-        # Start the Bot
-        updater.start_polling()
+        # # on non command i.e message - echo the message on Telegram
+        # dispatcher.add_handler(
+        #     MessageHandler(Filters.text & ~Filters.command, telegram_handler.echo)
+        # )
 
-        while True:
-            twm.join(0.5)
+        # # Start the Bot
+        # updater.start_polling()
+
+        # while True:
+        #     twm.join(0.5)
     except KeyboardInterrupt:
         state.save_state()
         os._exit(1)

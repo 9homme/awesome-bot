@@ -1,9 +1,9 @@
 import pandas as pd
-import telegram
 import datetime
-import binance
+import binance_client
 import config
 from finta import TA
+from telegram_client import telegram_helper
 
 
 def heikinashi(bars):
@@ -56,10 +56,10 @@ def coin_scouting(
     atr_multiplier,
     signal_type,
 ):
-    telegram.send_telegram_and_print(
+    telegram_helper.send_telegram_and_print(
         datetime.now(), f"Try scouting for the best trade..."
     )
-    coin_list = binance.get_all_coins_list()
+    coin_list = binance_client.get_all_coins_list()
     moon_coin = None
     for coin in coin_list:
         result = analyze_coin(
@@ -113,14 +113,16 @@ def analyze_coin(
     count = 0
     while True:
         try:
-            ohlc = binance.get_kline(coin)
+            ohlc = binance_client.get_kline(coin)
             ohlc["close"][message_datetime]
             break
         except:
             print("kline historical data in not complete, retry...")
             count = count + 1
             if count > retry_limit:
-                telegram.send_telegram_and_print(f"{coin} is unavailable, will skip!!")
+                telegram_helper.send_telegram_and_print(
+                    f"{coin} is unavailable, will skip!!"
+                )
                 break
 
     # shift ohlc for 1 row, we expect to take action based on last closed candle
@@ -144,7 +146,7 @@ def analyze_coin(
     last_close_price = ohlc["close"][message_datetime]
     low_price = ohlc["low"][message_datetime]
     high_price = ohlc["high"][message_datetime]
-    latest_price = binance.futures_recent_trades(symbol=coin)
+    latest_price = binance_client.futures_recent_trades(symbol=coin)
     latest_price = float(latest_price[-1]["price"])
     print(
         f"Analyzing {coin} last_close_price: {last_close_price} latest_price: {latest_price} signal_type: {signal_type} fast_signal: {fast_signal[message_datetime]} slow_signal: {slow_signal[message_datetime]}"
@@ -217,7 +219,7 @@ def analyze_coin(
 
 
 def check_rsi(position, rsi_check, current_rsi, rsi_buy, rsi_sell):
-    telegram.send_telegram_and_print(
+    telegram_helper.send_telegram_and_print(
         f"Checking RSI:{rsi_check}, potition: {position}, rsi: {current_rsi}"
     )
     return (
@@ -230,18 +232,20 @@ def check_rsi(position, rsi_check, current_rsi, rsi_buy, rsi_sell):
 def too_risk(symbol, latest_price, exit_price, leverage, max_risk, risk_mode):
     if risk_mode == "skip":
         risk = (abs(latest_price - exit_price) / latest_price) * leverage
-        telegram.send_telegram_and_print(
+        telegram_helper.send_telegram_and_print(
             symbol,
             f"Checking risk percentage latest_price: {latest_price} exit_price: {exit_price} leverage: {leverage} risk: {risk*100}%",
         )
         if risk <= max_risk:
-            telegram.send_telegram_and_print(symbol, f"Going to take risk...")
+            telegram_helper.send_telegram_and_print(symbol, f"Going to take risk...")
             return False
         else:
-            telegram.send_telegram_and_print(symbol, f"Too much risk, will skip...")
+            telegram_helper.send_telegram_and_print(
+                symbol, f"Too much risk, will skip..."
+            )
             return True
     else:
-        telegram.send_telegram_and_print(
+        telegram_helper.send_telegram_and_print(
             symbol, f"Risk mode: {risk_mode}, will not skip the trade"
         )
         return False
@@ -263,13 +267,13 @@ def is_in_trend(
             result = not trend_check or close_price > ema50[message_datetime]
         elif position == "short":
             result = not trend_check or close_price < ema50[message_datetime]
-        telegram.send_telegram_and_print(
+        telegram_helper.send_telegram_and_print(
             f"Analyzing trending[{config.trend_mode}] with trend_check: {trend_check} EMA50: {ema50[message_datetime]} close_price: {close_price} position: {position}, result: {result}"
         )
     elif config.trend_mode == "adx":
         adx = TA.ADX(ohlc)
         result = not trend_check or adx[message_datetime] >= 20
-        telegram.send_telegram_and_print(
+        telegram_helper.send_telegram_and_print(
             f"Analyzing trending[{config.trend_mode}] with trend_check: {trend_check} ADX:{adx[message_datetime]}, result: {result}"
         )
     # use both strategy
@@ -284,7 +288,7 @@ def is_in_trend(
             result = not trend_check or (
                 close_price < ema50[message_datetime] and adx[message_datetime] >= 20
             )
-        telegram.send_telegram_and_print(
+        telegram_helper.send_telegram_and_print(
             f"Analyzing trending[{config.trend_mode}] with trend_check: {trend_check} ADX:{adx[message_datetime]} EMA50: {ema50[message_datetime]} close_price: {close_price} position: {position}, result: {result}"
         )
     else:
@@ -292,7 +296,7 @@ def is_in_trend(
 
     # after trend check, if it in trend, then check for heikin if required.
     if trend_check and result == True and heikin_check:
-        telegram.send_telegram_and_print("Going to check for heikinashi")
+        telegram_helper.send_telegram_and_print("Going to check for heikinashi")
         # this to remove 1st row which have NaN value
         heikin = heikinashi(ohlc.iloc[1:, :])
         for i in range(0, heikin_look_back):
@@ -303,7 +307,7 @@ def is_in_trend(
                 result = close_heikin > open_heikin
             elif position == "short":
                 result = close_heikin < open_heikin
-            telegram.send_telegram_and_print(
+            telegram_helper.send_telegram_and_print(
                 f"heikinashi open: {open_heikin} close: {close_heikin} result: {result}"
             )
             if result == False:

@@ -1,8 +1,7 @@
 import state
 import config
-import helper
 from binance import Client
-import telegram
+from telegram_client import telegram_helper
 import numpy as np
 import pandas as pd
 import datetime
@@ -104,11 +103,13 @@ def order(
             quantity = (full_risk_quantity / risk) * config.max_risk
         else:
             quantity = full_risk_quantity
-        quantity = helper.round_decimals_down(quantity, get_symbol_decimal(symbol))
-        telegram.send_telegram_and_print(
+        quantity = telegram_helper.round_decimals_down(
+            quantity, get_symbol_decimal(symbol)
+        )
+        telegram_helper.send_telegram_and_print(
             f"Risk mode: {config.risk_mode}, risk: {risk}, max_risk: {config.max_risk} will order qty: {quantity} [full risk qty: {full_risk_quantity}]"
         )
-    telegram.send_telegram_and_print(
+    telegram_helper.send_telegram_and_print(
         f"Creating '{position}' order for {symbol} at {price} with quantity: {quantity} [reduceOnly={reduce_only}]"
     )
     side = None
@@ -129,7 +130,7 @@ def order(
 
     order = None
     while True:
-        telegram.send_telegram_and_print(
+        telegram_helper.send_telegram_and_print(
             datetime.now(), f"Waiting order: {client_order_id} to be filled"
         )
         try:
@@ -137,7 +138,7 @@ def order(
                 symbol=symbol, origClientOrderId=client_order_id
             )
             if order["status"] == Client.ORDER_STATUS_FILLED:
-                telegram.send_telegram_and_print(
+                telegram_helper.send_telegram_and_print(
                     datetime.now(),
                     f"Order: {client_order_id}({order['orderId']}) was filled with avg price: {order['avgPrice']} and qty: {order['executedQty']}",
                 )
