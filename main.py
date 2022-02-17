@@ -63,30 +63,33 @@ def main():
             interval=config.interval,
         )
 
-        # telegram
-        updater = Updater(config.telegram_token, use_context=True)
-        # Get the dispatcher to register handlers
-        dispatcher = updater.dispatcher
+        if config.telegram_token:
+            # telegram
+            updater = Updater(config.telegram_token, use_context=True)
+            # Get the dispatcher to register handlers
+            dispatcher = updater.dispatcher
 
-        # on different commands - answer in Telegram
-        dispatcher.add_handler(
-            CommandHandler("state", telegram_handler.get_current_state)
-        )
-        dispatcher.add_handler(
-            CommandHandler("exit", telegram_handler.exit_current_trade)
-        )
-        dispatcher.add_handler(CommandHandler("order", telegram_handler.manual_order))
-        dispatcher.add_handler(
-            CommandHandler("revenue", telegram_handler.update_total_revenue)
-        )
+            # on different commands - answer in Telegram
+            dispatcher.add_handler(
+                CommandHandler("state", telegram_handler.get_current_state)
+            )
+            dispatcher.add_handler(
+                CommandHandler("exit", telegram_handler.exit_current_trade)
+            )
+            dispatcher.add_handler(
+                CommandHandler("order", telegram_handler.manual_order)
+            )
+            dispatcher.add_handler(
+                CommandHandler("revenue", telegram_handler.update_total_revenue)
+            )
 
-        # on non command i.e message - echo the message on Telegram
-        dispatcher.add_handler(
-            MessageHandler(Filters.text & ~Filters.command, telegram_handler.echo)
-        )
+            # on non command i.e message - echo the message on Telegram
+            dispatcher.add_handler(
+                MessageHandler(Filters.text & ~Filters.command, telegram_handler.echo)
+            )
 
-        # Start the Bot
-        updater.start_polling()
+            # Start the Bot
+            updater.start_polling()
 
         while True:
             twm.join(0.5)

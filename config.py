@@ -14,7 +14,8 @@ api_secret = user_config["api_secret"]
 
 # telegram bot
 telegram_token = user_config["telegram_token"]
-chat_id = int(user_config["chat_id"])
+chat_id = user_config["chat_id"]
+chat_id = int(chat_id) if chat_id else None
 
 ticker = user_config["ticker"]
 total_revenue = float(user_config["total_revenue"])
