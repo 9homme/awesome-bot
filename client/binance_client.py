@@ -7,6 +7,7 @@ import pandas as pd
 from datetime import datetime
 import uuid
 from constant import POSITION_LONG, POSITION_SHORT
+import helper
 
 # binance client
 _client = Client(config.api_key, config.api_secret)
@@ -104,9 +105,7 @@ def order(
             quantity = (full_risk_quantity / risk) * config.max_risk
         else:
             quantity = full_risk_quantity
-        quantity = telegram_helper.round_decimals_down(
-            quantity, get_symbol_decimal(symbol)
-        )
+        quantity = helper.round_decimals_down(quantity, get_symbol_decimal(symbol))
         telegram_helper.send_telegram_and_print(
             f"Risk mode: {config.risk_mode}, risk: {risk}, max_risk: {config.max_risk} will order qty: {quantity} [full risk qty: {full_risk_quantity}]"
         )
