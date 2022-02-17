@@ -20,7 +20,7 @@ def futures_recent_trades(symbol):
 
 def get_all_coins_list():
     all_coins = [state.initial_ticker]
-    if config.auto_scouting == True:
+    if config.auto_scouting is True:
         # if manual override coins list
         if len(config.all_coins_list) > 0:
             all_coins = config.all_coins_list
@@ -95,7 +95,7 @@ def order(
         except Exception as e:
             print(f"Cannot change leverage, message: {str(e)}")
     total_to_invest = usdt_amount * config.leverage
-    if state.current_quantity != None:
+    if state.current_quantity is not None:
         quantity = state.current_quantity
     else:
         full_risk_quantity = total_to_invest / price

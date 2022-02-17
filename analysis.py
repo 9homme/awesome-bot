@@ -58,7 +58,7 @@ def coin_scouting(
     signal_type,
 ):
     telegram_helper.send_telegram_and_print(
-        datetime.now(), f"Try scouting for the best trade..."
+        datetime.now(), "Try scouting for the best trade..."
     )
     coin_list = binance_client.get_all_coins_list()
     moon_coin = None
@@ -77,8 +77,8 @@ def coin_scouting(
             signal_type,
         )
         if (
-            result != None
-            and result["position"] != None
+            result is not None
+            and result["position"] is not None
             and not too_risk(
                 coin,
                 result["latest_price"],
@@ -87,7 +87,7 @@ def coin_scouting(
                 max_risk,
                 risk_mode,
             )
-            and result["rsi_result"] == True
+            and result["rsi_result"] is True
         ):
             moon_coin = result
             break
@@ -212,7 +212,7 @@ def analyze_coin(
         moon_coin["take_profit_price"] = latest_price + (
             (latest_price - moon_coin["exit_price"]) * risk_reward_ratio
         )
-    if moon_coin["position"] != None:
+    if moon_coin["position"] is not None:
         moon_coin["rsi_result"] = check_rsi(
             moon_coin["position"], rsi_check, rsi[message_datetime], rsi_buy, rsi_sell
         )
@@ -238,11 +238,11 @@ def too_risk(symbol, latest_price, exit_price, leverage, max_risk, risk_mode):
             f"Checking risk percentage latest_price: {latest_price} exit_price: {exit_price} leverage: {leverage} risk: {risk*100}%",
         )
         if risk <= max_risk:
-            telegram_helper.send_telegram_and_print(symbol, f"Going to take risk...")
+            telegram_helper.send_telegram_and_print(symbol, "Going to take risk...")
             return False
         else:
             telegram_helper.send_telegram_and_print(
-                symbol, f"Too much risk, will skip..."
+                symbol, "Too much risk, will skip..."
             )
             return True
     else:
@@ -296,7 +296,7 @@ def is_in_trend(
         result = not trend_check
 
     # after trend check, if it in trend, then check for heikin if required.
-    if trend_check and result == True and heikin_check:
+    if trend_check and result is True and heikin_check:
         telegram_helper.send_telegram_and_print("Going to check for heikinashi")
         # this to remove 1st row which have NaN value
         heikin = heikinashi(ohlc.iloc[1:, :])
@@ -311,7 +311,7 @@ def is_in_trend(
             telegram_helper.send_telegram_and_print(
                 f"heikinashi open: {open_heikin} close: {close_heikin} result: {result}"
             )
-            if result == False:
+            if result is False:
                 break
 
     return result

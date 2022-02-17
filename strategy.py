@@ -130,7 +130,7 @@ def process_closed_candle_without_position(message_datetime):
         config.atr_multiplier,
         config.signal_type,
     )
-    if moon_coin != None:
+    if moon_coin is not None:
         state.ticker = moon_coin["symbol"]
         latest_price = moon_coin["latest_price"]
         position = moon_coin["position"]
@@ -184,7 +184,7 @@ def process_closed_candle_for_current_position(message_datetime):
         f"slow_signal: {slow_signal[message_datetime]}",
     )
     # Exit with CDC then create new opposite order
-    if new_position != None and state.current_position != new_position:
+    if new_position is not None and state.current_position != new_position:
         telegram_helper.send_telegram_and_print(
             message_datetime, f"Exit with CDC at {latest_price}"
         )
@@ -215,7 +215,7 @@ def process_closed_candle_for_current_position(message_datetime):
                 config.max_risk,
                 config.risk_mode,
             )
-            and analyze_result["rsi_result"] == True
+            and analyze_result["rsi_result"] is True
         ):
             binance_client.order(
                 state.ticker,

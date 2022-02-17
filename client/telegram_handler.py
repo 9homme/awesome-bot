@@ -23,7 +23,7 @@ def update_total_revenue(update: Update, context: CallbackContext) -> None:
 
 
 def exit_current_trade(update: Update, context: CallbackContext) -> None:
-    if state.current_position != None:
+    if state.current_position is not None:
         order_position = None
         if state.current_position == POSITION_SHORT:
             order_position = POSITION_LONG
@@ -53,7 +53,7 @@ def exit_current_trade(update: Update, context: CallbackContext) -> None:
 
 def manual_order(update: Update, context: CallbackContext) -> None:
     if len(context.args) == 2:
-        if state.current_position == None:
+        if state.current_position is None:
             order_position = context.args[0]
             order_symbol = context.args[1]
             update.message.reply_text(

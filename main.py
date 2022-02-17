@@ -36,7 +36,7 @@ def handle_socket_message(msg):
         elif state.current_candle_datetime != message_datetime:
             state.current_candle_datetime = message_datetime
             # if position is None then try to scouting for the best coin *** start with initial coin
-            if state.current_position == None:
+            if state.current_position is None:
                 strategy.process_closed_candle_without_position(message_datetime)
             # If there is current holding position
             else:
