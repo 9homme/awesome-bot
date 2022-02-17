@@ -9,6 +9,7 @@ from constant import POSITION_LONG, POSITION_SHORT
 
 
 def process_tick(message_datetime, latest_price):
+    # exit long with atr stop loss
     if state.current_position == POSITION_LONG and latest_price < state.exit_price:
         telegram_helper.send_telegram_and_print(
             datetime.now(), f"Exit with ATR at {latest_price}"
