@@ -2,7 +2,7 @@
 ***
 ![To the moon](https://upload.wikimedia.org/wikipedia/commons/3/36/Bitcoin-to-the-moon.store.png)
 
-## This is just simple crypto trading bot for Binance Futures API
+### This is just simple crypto trading bot for Binance Futures API
 ***
 
 ## Trading Strategy
