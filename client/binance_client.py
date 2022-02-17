@@ -1,11 +1,12 @@
 import state
 import config
 from binance import Client
-from telegram_client import telegram_helper
+from client import telegram_helper
 import numpy as np
 import pandas as pd
 from datetime import datetime
 import uuid
+from constant import POSITION_LONG, POSITION_SHORT
 
 # binance client
 _client = Client(config.api_key, config.api_secret)
@@ -113,9 +114,9 @@ def order(
         f"Creating '{position}' order for {symbol} at {price} with quantity: {quantity} [reduceOnly={reduce_only}]"
     )
     side = None
-    if position == "long":
+    if position == POSITION_LONG:
         side = Client.SIDE_BUY
-    elif position == "short":
+    elif position == POSITION_SHORT:
         side = Client.SIDE_SELL
 
     client_order_id = str(uuid.uuid4())

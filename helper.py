@@ -1,6 +1,7 @@
 import math
-from telegram_client import telegram_helper
+from client import telegram_helper
 from datetime import datetime
+from constant import POSITION_LONG, POSITION_SHORT
 
 
 def round_decimals_down(number: float, decimals: int = 2):
@@ -22,10 +23,10 @@ def calculate_total_revenue(
     position, current_revenue, quantity, entry_price, exit_price
 ):
     new_revenue = current_revenue
-    if position == "long":
+    if position == POSITION_LONG:
         new_revenue = current_revenue + (quantity * (exit_price - entry_price))
 
-    elif position == "short":
+    elif position == POSITION_SHORT:
         new_revenue = current_revenue + (quantity * (entry_price - exit_price))
 
     position_result = "Win" if new_revenue > current_revenue else "Lose"

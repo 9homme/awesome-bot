@@ -1,14 +1,15 @@
 from datetime import datetime
-from telegram_client import telegram_helper
+from client import telegram_helper
 import state
-import binance_client
+import client.binance_client as binance_client
 import helper
 import analysis
 import config
+from constant import POSITION_LONG, POSITION_SHORT
 
 
 def process_tick(message_datetime, latest_price):
-    if state.current_position == "long" and latest_price < state.exit_price:
+    if state.current_position == POSITION_LONG and latest_price < state.exit_price:
         telegram_helper.send_telegram_and_print(
             datetime.now(), f"Exit with ATR at {latest_price}"
         )
@@ -23,10 +24,17 @@ def process_tick(message_datetime, latest_price):
             datetime.now(), f"TotalRevenue: {state.total_revenue}"
         )
         binance_client.order(
-            state.ticker, "short", latest_price, state.total_revenue, reduce_only="true"
+            state.ticker,
+            POSITION_SHORT,
+            latest_price,
+            state.total_revenue,
+            reduce_only="true",
         )
     # take profit
-    elif state.current_position == "long" and latest_price >= state.take_profit_price:
+    elif (
+        state.current_position == POSITION_LONG
+        and latest_price >= state.take_profit_price
+    ):
         telegram_helper.send_telegram_and_print(
             datetime.now(), f"Take profit at {latest_price}"
         )
@@ -41,10 +49,14 @@ def process_tick(message_datetime, latest_price):
             datetime.now(), f"TotalRevenue: {state.total_revenue}"
         )
         binance_client.order(
-            state.ticker, "short", latest_price, state.total_revenue, reduce_only="true"
+            state.ticker,
+            POSITION_SHORT,
+            latest_price,
+            state.total_revenue,
+            reduce_only="true",
         )
     # exit short with atr stop loss
-    elif state.current_position == "short" and latest_price > state.exit_price:
+    elif state.current_position == POSITION_SHORT and latest_price > state.exit_price:
         telegram_helper.send_telegram_and_print(
             datetime.now(), f"Exit with ATR at {latest_price}"
         )
@@ -59,10 +71,17 @@ def process_tick(message_datetime, latest_price):
             datetime.now(), f"TotalRevenue: {state.total_revenue}"
         )
         binance_client.order(
-            state.ticker, "long", latest_price, state.total_revenue, reduce_only="true"
+            state.ticker,
+            POSITION_LONG,
+            latest_price,
+            state.total_revenue,
+            reduce_only="true",
         )
     # take profit
-    elif state.current_position == "short" and latest_price <= state.take_profit_price:
+    elif (
+        state.current_position == POSITION_SHORT
+        and latest_price <= state.take_profit_price
+    ):
         telegram_helper.send_telegram_and_print(
             datetime.now(), f"Take profit at {latest_price}"
         )
@@ -77,7 +96,11 @@ def process_tick(message_datetime, latest_price):
             datetime.now(), f"TotalRevenue: {state.total_revenue}"
         )
         binance_client.order(
-            state.ticker, "long", latest_price, state.total_revenue, reduce_only="true"
+            state.ticker,
+            POSITION_LONG,
+            latest_price,
+            state.total_revenue,
+            reduce_only="true",
         )
     else:
         print(
@@ -208,7 +231,7 @@ def process_closed_candle_for_current_position(message_datetime):
                 f"{state.current_position}!!!! signal_type: {config.signal_type} fast_signal: {fast_signal[message_datetime]} slow_signal: {slow_signal[message_datetime]} state.current_price: {state.current_price} exit_at: {state.exit_price} take_profit_at: {state.take_profit_price}",
             )
     # re calculate exit price if it is higher for long
-    elif state.current_position == "long":
+    elif state.current_position == POSITION_LONG:
         new_exit_price = low_price - atr[message_datetime]
         if new_exit_price > state.exit_price:
             telegram_helper.send_telegram_and_print(
@@ -217,7 +240,7 @@ def process_closed_candle_for_current_position(message_datetime):
             )
             state.exit_price = new_exit_price
     # re calculate exit price if it is lower for short
-    elif state.current_position == "short":
+    elif state.current_position == POSITION_SHORT:
         new_exit_price = high_price + atr[message_datetime]
         if new_exit_price < state.exit_price:
             telegram_helper.send_telegram_and_print(

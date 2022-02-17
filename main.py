@@ -9,10 +9,11 @@ from telegram.ext import (
 import traceback
 import sys
 import os
-from telegram_client import telegram_helper, telegram_handler
+from client import telegram_handler
+from client import telegram_helper
 import config
 import state
-import binance_client
+import client.binance_client as binance_client
 import strategy
 
 print("Number of arguments:", len(sys.argv), "arguments.")

@@ -5,8 +5,9 @@ from telegram.ext import (
 import config
 import state
 import helper
-import binance_client
+import client.binance_client as binance_client
 from finta import TA
+from constant import POSITION_LONG, POSITION_SHORT
 
 
 def get_current_state(update: Update, context: CallbackContext) -> None:
@@ -24,10 +25,10 @@ def update_total_revenue(update: Update, context: CallbackContext) -> None:
 def exit_current_trade(update: Update, context: CallbackContext) -> None:
     if state.current_position != None:
         order_position = None
-        if state.current_position == "short":
-            order_position = "long"
-        elif state.current_position == "long":
-            order_position = "short"
+        if state.current_position == POSITION_SHORT:
+            order_position = POSITION_LONG
+        elif state.current_position == POSITION_LONG:
+            order_position = POSITION_SHORT
         latest_price = binance_client.futures_recent_trades(symbol=state.ticker)
         latest_price = float(latest_price[-1]["price"])
         state.total_revenue = helper.calculate_total_revenue(
@@ -69,9 +70,9 @@ def manual_order(update: Update, context: CallbackContext) -> None:
             high_price = last_closed_candle["high"]
             atr = TA.ATR(ohlc)
             last_atr = atr[-2]
-            if order_position == "long":
+            if order_position == POSITION_LONG:
                 state.exit_price = low_price - last_atr
-            elif order_position == "short":
+            elif order_position == POSITION_SHORT:
                 state.exit_price = high_price + last_atr
             state.take_profit_price = close_price + (
                 (close_price - state.exit_price) * config.risk_reward_ratio

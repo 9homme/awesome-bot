@@ -1,9 +1,10 @@
 import pandas as pd
 from datetime import datetime
-import binance_client
+import client.binance_client as binance_client
 import config
 from finta import TA
-from telegram_client import telegram_helper
+from client import telegram_helper
+from constant import POSITION_LONG, POSITION_SHORT
 
 
 def heikinashi(bars):
@@ -166,7 +167,7 @@ def analyze_coin(
     moon_coin["low_price"] = low_price
 
     if crossover(message_datetime, fast_signal, slow_signal) and is_in_trend(
-        "long",
+        POSITION_LONG,
         trend_check,
         last_close_price,
         ohlc,
@@ -175,7 +176,7 @@ def analyze_coin(
         heikin_look_back,
     ):
         moon_coin["in_trend"] = is_in_trend(
-            "long",
+            POSITION_LONG,
             True,
             last_close_price,
             ohlc,
@@ -183,13 +184,13 @@ def analyze_coin(
             heikin_check,
             heikin_look_back,
         )
-        moon_coin["position"] = "long"
+        moon_coin["position"] = POSITION_LONG
         moon_coin["exit_price"] = low_price - atr[message_datetime]
         moon_coin["take_profit_price"] = latest_price + (
             (latest_price - moon_coin["exit_price"]) * risk_reward_ratio
         )
     elif crossover(message_datetime, slow_signal, fast_signal) and is_in_trend(
-        "short",
+        POSITION_SHORT,
         trend_check,
         last_close_price,
         ohlc,
@@ -198,7 +199,7 @@ def analyze_coin(
         heikin_look_back,
     ):
         moon_coin["in_trend"] = is_in_trend(
-            "short",
+            POSITION_SHORT,
             True,
             last_close_price,
             ohlc,
@@ -206,7 +207,7 @@ def analyze_coin(
             heikin_check,
             heikin_look_back,
         )
-        moon_coin["position"] = "short"
+        moon_coin["position"] = POSITION_SHORT
         moon_coin["exit_price"] = high_price + atr[message_datetime]
         moon_coin["take_profit_price"] = latest_price + (
             (latest_price - moon_coin["exit_price"]) * risk_reward_ratio
@@ -224,8 +225,8 @@ def check_rsi(position, rsi_check, current_rsi, rsi_buy, rsi_sell):
     )
     return (
         not rsi_check
-        or (position == "long" and current_rsi >= rsi_buy)
-        or (position == "short" and current_rsi <= rsi_sell)
+        or (position == POSITION_LONG and current_rsi >= rsi_buy)
+        or (position == POSITION_SHORT and current_rsi <= rsi_sell)
     )
 
 
@@ -263,9 +264,9 @@ def is_in_trend(
     result = False
     if config.trend_mode == "ema":
         ema50 = TA.EMA(ohlc, 50)
-        if position == "long":
+        if position == POSITION_LONG:
             result = not trend_check or close_price > ema50[message_datetime]
-        elif position == "short":
+        elif position == POSITION_SHORT:
             result = not trend_check or close_price < ema50[message_datetime]
         telegram_helper.send_telegram_and_print(
             f"Analyzing trending[{config.trend_mode}] with trend_check: {trend_check} EMA50: {ema50[message_datetime]} close_price: {close_price} position: {position}, result: {result}"
@@ -280,11 +281,11 @@ def is_in_trend(
     elif config.trend_mode == "both":
         adx = TA.ADX(ohlc)
         ema50 = TA.EMA(ohlc, 50)
-        if position == "long":
+        if position == POSITION_LONG:
             result = not trend_check or (
                 close_price > ema50[message_datetime] and adx[message_datetime] >= 20
             )
-        elif position == "short":
+        elif position == POSITION_SHORT:
             result = not trend_check or (
                 close_price < ema50[message_datetime] and adx[message_datetime] >= 20
             )
@@ -303,9 +304,9 @@ def is_in_trend(
             checking_heikin_candle = heikin.shift(i)
             open_heikin = checking_heikin_candle["open"][message_datetime]
             close_heikin = checking_heikin_candle["close"][message_datetime]
-            if position == "long":
+            if position == POSITION_LONG:
                 result = close_heikin > open_heikin
-            elif position == "short":
+            elif position == POSITION_SHORT:
                 result = close_heikin < open_heikin
             telegram_helper.send_telegram_and_print(
                 f"heikinashi open: {open_heikin} close: {close_heikin} result: {result}"
