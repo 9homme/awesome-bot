@@ -87,7 +87,7 @@ def coin_scouting(
                 max_risk,
                 risk_mode,
             )
-            and result["rsi_result"] is True
+            and result["rsi_result"]
         ):
             moon_coin = result
             break
@@ -296,7 +296,7 @@ def is_in_trend(
         result = not trend_check
 
     # after trend check, if it in trend, then check for heikin if required.
-    if trend_check and result is True and heikin_check:
+    if trend_check and result and heikin_check:
         telegram_helper.send_telegram_and_print("Going to check for heikinashi")
         # this to remove 1st row which have NaN value
         heikin = heikinashi(ohlc.iloc[1:, :])

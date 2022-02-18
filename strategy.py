@@ -215,7 +215,7 @@ def process_closed_candle_for_current_position(message_datetime):
                 config.max_risk,
                 config.risk_mode,
             )
-            and analyze_result["rsi_result"] is True
+            and analyze_result["rsi_result"]
         ):
             binance_client.order(
                 state.ticker,

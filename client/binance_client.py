@@ -21,7 +21,7 @@ def futures_recent_trades(symbol):
 
 def get_all_coins_list():
     all_coins = [state.initial_ticker]
-    if config.auto_scouting is True:
+    if config.auto_scouting:
         # if manual override coins list
         if len(config.all_coins_list) > 0:
             all_coins = config.all_coins_list
