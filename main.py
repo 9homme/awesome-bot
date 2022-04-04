@@ -99,6 +99,7 @@ def main():
 
     except Exception as e:
         print(f"Some error occured but just skip, message: {str(e)}")
+        print(traceback.format_exc())
         main()
 
 
