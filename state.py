@@ -47,7 +47,7 @@ def load_state():
     try:
         with open(f"{config.config_name}_state.pkl", "rb") as file:
             state = dill.load(file)
-            ticker = state["ticker"] if state["ticker"] is not None else config.ticker
+            ticker = state["ticker"] if state["ticker"] is not None else initial_ticker
             current_candle_datetime = state["datetime"]
             current_position = state["position"]
             current_price = state["price"]
@@ -58,3 +58,5 @@ def load_state():
                 total_revenue = state["total_revenue"]
     except:
         print(f"No state for {ticker}, bot will start from zero")
+        ticker = initial_ticker
+        total_revenue = config.total_revenue
